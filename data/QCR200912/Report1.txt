@@ -1,0 +1,68 @@
+
+
+                            Freedom of Information Act (FOIA)
+
+
+         The FOIA CD-ROM for Cycle Date 12/31/2009
+         contains the details in each file as shown below:
+
+
+                4714  FCU's        Federally chartered, federally insured CU	
+				   
+                2840  FISCU's      State chartered, federally insured CU
+                                       
+                 156  NFICU's      State chartered, not federally insured CU
+                                   
+
+
+                7710               Total Credit Union Count
+
+
+
+         Total Records in each of the seven Data files listed below:
+
+              File Name             Data Records             Title Record (Header)*
+
+
+              FOICU.txt                  7710             	+ 1
+
+              FS220.txt                  7710            	+ 1
+
+              FS220A.txt                 7710            	+ 1
+
+              FS220B.txt                 7710             	+ 1
+
+              FS220C.txt                 7710    	        + 1
+              
+              FS220D.txt                 7710                   + 1
+
+              FS220G.txt                 7710   	        + 1
+              
+              FS220CUSO.txt              7710                   + 1
+		
+
+
+
+         Account Description Files
+
+              AcctDesc.txt          Contains description of all the accounts.
+
+	      Acct-DescCUSO.txt     Contains description of accounts in fs220CUSO.txt file.	
+
+              FOICUDES.txt          Contains description of accounts in FOICU.txt file.
+
+         Information Files
+
+              Report1.txt           This is the document you are seeing right now.
+
+              Readme.txt            This file provides info. about the CD-ROM.
+
+
+
+         The data in the text file (.txt) is in text-delimited format.
+
+         It has been seperated by commas (,) and double quotes (" ").
+
+
+
+         * One title record (first record) for each file.
