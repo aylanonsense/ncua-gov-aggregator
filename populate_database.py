@@ -103,7 +103,6 @@ for y in years:
 				credit_union_account_data[record['CU_NUMBER']][x][y] = record[x]
 end_timer()
 
-
 start_timer("Inserting credit union account data into database")
 for cu_id in credit_union_account_data:
 	for acct_id in credit_union_account_data[cu_id]:
