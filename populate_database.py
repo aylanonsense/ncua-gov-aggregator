@@ -12,6 +12,7 @@ years = range(2009, 2014)
 limit_to_important_accounts = False
 important_accounts = ['ACCT_010']
 timer = None
+total_sql_statements = 0
 
 def start_timer(s):
 	global timer
@@ -46,6 +47,7 @@ start_timer("Dropping tables")
 cursor.execute("DROP TABLE IF EXISTS CREDIT_UNION_ACCOUNTS")
 cursor.execute("DROP TABLE IF EXISTS CREDIT_UNIONS")
 cursor.execute("DROP TABLE IF EXISTS ACCOUNTS")
+total_sql_statements += 3
 end_timer()
 
 start_timer("Recreating tables")
@@ -57,37 +59,40 @@ sql += "PRIMARY KEY(CU_ID,ACCT_ID),INDEX(ACCT_ID), "
 sql += "FOREIGN KEY (CU_ID) REFERENCES CREDIT_UNIONS(CU_ID), "
 sql += "FOREIGN KEY (ACCT_ID) REFERENCES ACCOUNTS(ACCT_ID))"
 cursor.execute(sql)
+total_sql_statements += 3
 end_timer()
 
 start_timer("Aggregating credit union info")
 credit_union_lookup = {}
-for y in years:
+for y in years[::-1]:
 	for credit_union in csv_to_dict('data/QCR%i12/foicu.txt' % y):
 		if credit_union['CU_NUMBER'] not in credit_union_lookup:
 			credit_union_lookup[credit_union['CU_NUMBER']] = { 'CU_NAME': credit_union['CU_NAME'] }
 		elif credit_union['CU_NAME'] != credit_union_lookup[credit_union['CU_NUMBER']]['CU_NAME'] and not suppress_warnings:
-			print("  Warning: In %i credit union %s changed its name from %s to %s" % (y, credit_union['CU_NUMBER'], credit_union_lookup[credit_union['CU_NUMBER']]['CU_NAME'], credit_union['CU_NAME']))
+			print("  Warning: In %i credit union %s changed its name from %s to %s" % (y, credit_union['CU_NUMBER'], credit_union['CU_NAME'], credit_union_lookup[credit_union['CU_NUMBER']]['CU_NAME']))
 end_timer()
 
 start_timer("Inserting credit union info into database")
 for x in credit_union_lookup:
 	cursor.execute("INSERT INTO CREDIT_UNIONS VALUES ('%s', '%s')" % (x, credit_union_lookup[x]['CU_NAME'].replace("'", "\\'")))
+	total_sql_statements += 1
 end_timer()
 
 start_timer("Aggregating account info")
 account_lookup = {}
-for y in years:
+for y in years[::-1]:
 	for account in csv_to_dict('data/QCR%i12/AcctDesc.txt' % y):
 		account_id = account['Account'].upper()
 		if account_id not in account_lookup:
 			account_lookup[account_id] = { 'ACCT_NAME': account['AcctName'] }
 		elif account['AcctName'] != account_lookup[account_id]['ACCT_NAME'] and not suppress_warnings:
-			print("  Warning: In %i account %s changed definitions from '%s' to '%s'" % (y, account_id, account_lookup[account_id]['ACCT_NAME'], account['AcctName']))
+			print("  Warning: In %i account %s changed definitions from '%s' to '%s'" % (y, account_id, account['AcctName'], account_lookup[account_id]['ACCT_NAME']))
 end_timer()
 
 start_timer("Inserting account info into database")
 for x in account_lookup:
 	cursor.execute("INSERT INTO ACCOUNTS VALUES ('%s', '%s')" % (x, account_lookup[x]['ACCT_NAME'].replace("'", "\\'")))
+	total_sql_statements += 1
 end_timer()
 
 start_timer("Gathering credit union account data across time intervals")
@@ -111,6 +116,7 @@ for cu_id in credit_union_account_data:
 			sql += ", %s" % (credit_union_account_data[cu_id][acct_id][y] if y in credit_union_account_data[cu_id][acct_id] else 'null')
 		sql += ")"
 		cursor.execute(sql)
+		total_sql_statements += 1
 end_timer()
 
 start_timer("Committing changes and closing database connection")
@@ -118,4 +124,4 @@ db.commit()
 db.close()
 end_timer()
 
-print("Done! Script ran for a total of %f seconds" % (time.clock() - very_start_time))
+print("Done! Script took %f seconds to execute a total of %i sql statements" % (time.clock() - very_start_time), total_sql_statements)
