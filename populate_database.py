@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import MySQLdb, csv, sys, time
+import MySQLdb, csv, sys, time, os.path
 
 if len(sys.argv) < 5:
 	print("You must include database connection variables as arguments, e.g. localhost root '' NCUA")
@@ -37,6 +37,13 @@ def csv_to_dict(filepath):
 				record[headers[i]] = row[i]
 			records.append(record)
 	return records
+
+def is_float(value):
+	try:
+		float(value)
+		return True
+	except ValueError:
+		return False
 
 start_timer("Connecting to the database")
 db = MySQLdb.connect(sys.argv[1], sys.argv[2] ,sys.argv[3] ,sys.argv[4])
@@ -90,30 +97,36 @@ for y in years[::-1]:
 end_timer()
 
 start_timer("Inserting account info into database")
-for x in account_lookup:
-	cursor.execute("INSERT INTO ACCOUNTS VALUES ('%s', '%s')" % (x, account_lookup[x]['ACCT_NAME'].replace("'", "\\'")))
+for acct_id in account_lookup:
+	cursor.execute("INSERT INTO ACCOUNTS VALUES ('%s', '%s')" % (acct_id, account_lookup[acct_id]['ACCT_NAME'].replace("'", "\\'")))
 	total_sql_statements += 1
 end_timer()
 
-start_timer("Gathering credit union account data across time intervals")
 credit_union_account_data = {}
-for y in years:
-	for record in csv_to_dict('data/QCR%i12/fs220.txt' % y):
-		if record['CU_NUMBER'] not in credit_union_account_data:
-			credit_union_account_data[record['CU_NUMBER']] = {}
-		for x in account_lookup:
-			if x in record and (not limit_to_important_accounts or x in important_accounts):
-				if x not in credit_union_account_data[record['CU_NUMBER']]:
-					credit_union_account_data[record['CU_NUMBER']][x] = {}
-				credit_union_account_data[record['CU_NUMBER']][x][y] = record[x]
-end_timer()
+for sheet in ['fs220']:#, 'fs220A', 'fs220B', 'fs220C', 'fs220D', 'fs220G', 'fs220H', 'fs220I']:
+	start_timer("Gathering credit union account data from %s across time intervals" % sheet)
+	for y in years:
+		if os.path.isfile('data/QCR%i12/%s.txt' % (y, sheet)):
+			for record in csv_to_dict('data/QCR%i12/%s.txt' % (y, sheet)):
+				cu_id = record['CU_NUMBER']
+				if cu_id not in credit_union_account_data:
+					credit_union_account_data[cu_id] = {}
+				for acct_id in account_lookup:
+					if acct_id in record and is_float(record[acct_id]) and (not limit_to_important_accounts or acct_id in important_accounts):
+						if acct_id not in credit_union_account_data[cu_id]:
+							credit_union_account_data[cu_id][acct_id] = {}
+						credit_union_account_data[cu_id][acct_id][y] = record[acct_id]
+	end_timer()
 
 start_timer("Inserting credit union account data into database")
 for cu_id in credit_union_account_data:
 	for acct_id in credit_union_account_data[cu_id]:
 		sql = "INSERT INTO CREDIT_UNION_ACCOUNTS VALUES (%s, '%s'" % (cu_id, acct_id)
 		for y in years:
-			sql += ", %s" % (credit_union_account_data[cu_id][acct_id][y] if y in credit_union_account_data[cu_id][acct_id] else 'null')
+			if y in credit_union_account_data[cu_id][acct_id]:
+				sql += ", %s" % credit_union_account_data[cu_id][acct_id][y]
+			else:
+				sql += ", null"
 		sql += ")"
 		cursor.execute(sql)
 		total_sql_statements += 1
@@ -124,4 +137,4 @@ db.commit()
 db.close()
 end_timer()
 
-print("Done! Script took %f seconds to execute a total of %i sql statements" % (time.clock() - very_start_time), total_sql_statements)
+print("Done! Script took %f seconds to execute a total of %i sql statements" % (time.clock() - very_start_time, total_sql_statements))
